@@ -22,8 +22,8 @@ Strukturirana sesija analize između BA i DBA agenata za novi zahtev klijenta.
 [Šta klijent želi postići]
 
 ### Tip procesa
-- [ ] Upitnik
-- [ ] UW proces
+- [ ] Upitnik (Data Collection) -> **Vidi 09_ARCHITECTURE_SEPARATION**
+- [ ] UW proces (Business Logic) -> **Vidi 06_PRAVILA_I_PROVERE**
 - [ ] Workflow
 - [ ] Test/Anketa
 

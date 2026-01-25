@@ -29,6 +29,12 @@ description: Kreiranje novog tipa upitnika od analize do JSON-a
    - Mapira svaki zahtev na tabelu
    - Dokumentuj gaps
 
+4. **Arhitektonska Validacija (CRITICAL)**
+   - Proveri `docs/analysis/09_ARCHITECTURE_SEPARATION.md`
+   - **Pravilo**: Da li je ovo pitanje samo za prikupljanje podataka?
+   - Ako pravilo podrazumeva korekciju premije -> To ide u UW Modul (`06_PRAVILA`), upitnik samo vraća CODE/VALUE.
+   - Proveri `docs/analysis/11_MICROFRONTEND_STRATEGY.md` (Dumb Renderer compatibility)
+
 ### FAZA 2: Validacija (DBA Agent)
 
 4. **Validiraj protiv modela**
