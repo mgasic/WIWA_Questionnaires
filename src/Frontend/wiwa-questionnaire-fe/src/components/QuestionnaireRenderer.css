@@ -1,0 +1,131 @@
+.wiwa-renderer {
+  font-family: 'Inter', sans-serif;
+  max-width: 800px;
+  margin: 0 auto;
+}
+
+.question-card {
+  background: white;
+  color: #1f2937;
+  /* Dark gray for visibility */
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  padding: 16px;
+  margin-bottom: 16px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.question-header {
+  margin-bottom: 12px;
+  font-weight: 600;
+  display: flex;
+  justify-content: space-between;
+}
+
+.q-label {
+  color: #9ca3af;
+  font-size: 0.8em;
+}
+
+.options-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.answer-wrapper {
+  display: flex;
+  flex-direction: column;
+}
+
+.answer-option {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  cursor: pointer;
+  padding: 8px;
+  border-radius: 4px;
+}
+
+.answer-option:hover {
+  background-color: #f9fafb;
+}
+
+.sub-questions-container,
+.children-container {
+  margin-top: 15px;
+  padding-left: 30px;
+  border-left: 2px solid #e0e0e0;
+  transition: all 0.3s ease;
+}
+
+.children-container {
+  border-left-style: dashed;
+  /* Visual distinction for always-visible children */
+}
+
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    transform: translateY(-5px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.text-input {
+  width: 100%;
+  padding: 8px;
+  border: 1px solid #d1d5db;
+  border-radius: 4px;
+  background-color: #ffffff;
+  /* Force white background */
+  color: #1f2937;
+  /* Force dark text */
+}
+
+.text-input:read-only {
+  background-color: #f3f4f6;
+  /* Light gray for readonly */
+  cursor: not-allowed;
+}
+
+/* Validation Styles */
+.required-mark {
+  color: #ef4444;
+  margin-left: 4px;
+}
+
+.question-card.has-error {
+  border-color: #ef4444;
+  background-color: #fef2f2;
+}
+
+.error-message {
+  color: #ef4444;
+  font-size: 0.85em;
+  margin-top: 6px;
+}
+
+.actions-bar {
+  margin-top: 30px;
+  text-align: right;
+}
+
+.btn-validate {
+  background-color: #2563eb;
+  color: white;
+  padding: 10px 20px;
+  border: none;
+  border-radius: 6px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.btn-validate:hover {
+  background-color: #1d4ed8;
+}

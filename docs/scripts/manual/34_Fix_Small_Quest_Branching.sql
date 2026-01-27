@@ -1,0 +1,152 @@
+
+USE [WIWA_DB_NEW];
+GO
+SET NOCOUNT ON;
+
+BEGIN TRANSACTION;
+
+DECLARE @SurveyTypeID INT = 2; -- Small Questionnaire
+DECLARE @Q10000_ID INT = 10000; -- Health Card Yes/No
+DECLARE @Q103_ID INT = 103; -- Health Card Name (Text)
+
+-- ============================================================
+-- 1. Refactor Q103 (Health Card) Logic
+-- ============================================================
+-- Remove Q103 from direct questionnaire mapping (it should be a sub-question)
+DELETE FROM Questionnaires 
+WHERE QuestionnaireTypeID = @SurveyTypeID AND QuestionID = @Q103_ID;
+
+-- Add Q10000 (Parent) to questionnaire mapping if not exists
+IF NOT EXISTS (SELECT 1 FROM Questionnaires WHERE QuestionnaireTypeID = @SurveyTypeID AND QuestionID = @Q10000_ID)
+BEGIN
+    INSERT INTO Questionnaires (QuestionnaireTypeID, QuestionID)
+    VALUES (@SurveyTypeID, @Q10000_ID);
+    PRINT 'Added Q10000 (Health Card Yes/No) to Small Questionnaire';
+END
+
+-- Link Q10000 "Da" -> Q103
+DECLARE @AnsYes_10000 INT;
+SELECT @AnsYes_10000 = PredefinedAnswerID FROM PredefinedAnswers WHERE QuestionID = @Q10000_ID AND Answer LIKE N'Da%';
+
+IF @AnsYes_10000 IS NOT NULL
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM PredefinedAnswerSubQuestions WHERE PredefinedAnswerID = @AnsYes_10000 AND SubQuestionID = @Q103_ID)
+    BEGIN
+        INSERT INTO PredefinedAnswerSubQuestions (PredefinedAnswerID, SubQuestionID)
+        VALUES (@AnsYes_10000, @Q103_ID);
+        PRINT 'Linked Q10000-Yes -> Q103 (Name)';
+    END
+END
+ELSE
+BEGIN
+    PRINT 'WARNING: Answer "Da" for Q10000 not found!';
+END
+
+-- Make Q103 required (when shown)
+UPDATE Questions SET IsRequired = 1 WHERE QuestionID = @Q103_ID;
+
+
+-- ============================================================
+-- 2. Add Missing Sub-Questions for Q105, Q107, Q108, Q109
+-- ============================================================
+
+-- Helper variable for new IDs
+DECLARE @NewID INT;
+
+-- Function-like block for Q105 ("Ispitivanje")
+-- ------------------------------------------------------------
+IF NOT EXISTS (SELECT 1 FROM Questions WHERE QuestionID = 1051)
+BEGIN
+    INSERT INTO Questions (QuestionID, QuestionText, QuestionLabel, QuestionOrder, QuestionFormatID, SpecificQuestionTypeID, ParentQuestionID, IsRequired)
+    VALUES (1051, N'Detalji (Lista bolesti):', N'105.1', 1, 1, 2, 105, 1);
+    PRINT 'Created Q1051';
+END
+
+-- Link Q105 "Da" -> Q1051
+DECLARE @AnsYes_105 INT;
+SELECT @AnsYes_105 = PredefinedAnswerID FROM PredefinedAnswers WHERE QuestionID = 105 AND Answer LIKE N'Da%';
+
+IF @AnsYes_105 IS NOT NULL
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM PredefinedAnswerSubQuestions WHERE PredefinedAnswerID = @AnsYes_105 AND SubQuestionID = 1051)
+    BEGIN
+        INSERT INTO PredefinedAnswerSubQuestions (PredefinedAnswerID, SubQuestionID)
+        VALUES (@AnsYes_105, 1051);
+        PRINT 'Linked Q105-Yes -> Q1051';
+    END
+END
+
+
+-- Function-like block for Q107 ("Sport")
+-- ------------------------------------------------------------
+IF NOT EXISTS (SELECT 1 FROM Questions WHERE QuestionID = 1071)
+BEGIN
+    INSERT INTO Questions (QuestionID, QuestionText, QuestionLabel, QuestionOrder, QuestionFormatID, SpecificQuestionTypeID, ParentQuestionID, IsRequired)
+    VALUES (1071, N'Detalji (Sport):', N'107.1', 1, 1, 2, 107, 1);
+    PRINT 'Created Q1071';
+END
+
+-- Link Q107 "Da" -> Q1071
+DECLARE @AnsYes_107 INT;
+SELECT @AnsYes_107 = PredefinedAnswerID FROM PredefinedAnswers WHERE QuestionID = 107 AND Answer LIKE N'Da%';
+
+IF @AnsYes_107 IS NOT NULL
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM PredefinedAnswerSubQuestions WHERE PredefinedAnswerID = @AnsYes_107 AND SubQuestionID = 1071)
+    BEGIN
+        INSERT INTO PredefinedAnswerSubQuestions (PredefinedAnswerID, SubQuestionID)
+        VALUES (@AnsYes_107, 1071);
+        PRINT 'Linked Q107-Yes -> Q1071';
+    END
+END
+
+
+-- Function-like block for Q108 ("Rizik")
+-- ------------------------------------------------------------
+IF NOT EXISTS (SELECT 1 FROM Questions WHERE QuestionID = 1081)
+BEGIN
+    INSERT INTO Questions (QuestionID, QuestionText, QuestionLabel, QuestionOrder, QuestionFormatID, SpecificQuestionTypeID, ParentQuestionID, IsRequired)
+    VALUES (1081, N'Detalji (Rizik povređivanja):', N'108.1', 1, 1, 2, 108, 1);
+    PRINT 'Created Q1081';
+END
+
+-- Link Q108 "Da" -> Q1081
+DECLARE @AnsYes_108 INT;
+SELECT @AnsYes_108 = PredefinedAnswerID FROM PredefinedAnswers WHERE QuestionID = 108 AND Answer LIKE N'Da%';
+
+IF @AnsYes_108 IS NOT NULL
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM PredefinedAnswerSubQuestions WHERE PredefinedAnswerID = @AnsYes_108 AND SubQuestionID = 1081)
+    BEGIN
+        INSERT INTO PredefinedAnswerSubQuestions (PredefinedAnswerID, SubQuestionID)
+        VALUES (@AnsYes_108, 1081);
+        PRINT 'Linked Q108-Yes -> Q1081';
+    END
+END
+
+
+-- Function-like block for Q109 ("Odbijena ponuda")
+-- ------------------------------------------------------------
+IF NOT EXISTS (SELECT 1 FROM Questions WHERE QuestionID = 1091)
+BEGIN
+    INSERT INTO Questions (QuestionID, QuestionText, QuestionLabel, QuestionOrder, QuestionFormatID, SpecificQuestionTypeID, ParentQuestionID, IsRequired)
+    VALUES (1091, N'Detalji (Odbijena ponuda):', N'109.1', 1, 1, 2, 109, 1);
+    PRINT 'Created Q1091';
+END
+
+-- Link Q109 "Da" -> Q1091
+DECLARE @AnsYes_109 INT;
+SELECT @AnsYes_109 = PredefinedAnswerID FROM PredefinedAnswers WHERE QuestionID = 109 AND Answer LIKE N'Da%';
+
+IF @AnsYes_109 IS NOT NULL
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM PredefinedAnswerSubQuestions WHERE PredefinedAnswerID = @AnsYes_109 AND SubQuestionID = 1091)
+    BEGIN
+        INSERT INTO PredefinedAnswerSubQuestions (PredefinedAnswerID, SubQuestionID)
+        VALUES (@AnsYes_109, 1091);
+        PRINT 'Linked Q109-Yes -> Q1091';
+    END
+END
+
+COMMIT;
+PRINT 'Small Questionnaire Logic Updates Completed.';

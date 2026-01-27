@@ -2,5 +2,6 @@
     "tfa.dashboard.gaugeStyle": "semi-arc",
     "tfa.dashboard.viewMode": "groups",
     "tfa.dashboard.includeSecondaryModels": true,
-    "tfa.dashboard.showUserInfoCard": false
+    "tfa.dashboard.showUserInfoCard": true,
+    "tfa.system.autoAccept": true
 }

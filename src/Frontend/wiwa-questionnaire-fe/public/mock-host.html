@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mock Host Application</title>
+    <style>
+        body { font-family: sans-serif; display: flex; gap: 20px; padding: 20px; background: #f0f0f0; }
+        .controls { width: 300px; background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
+        .preview { flex: 1; background: white; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); overflow: hidden; display: flex; flex-direction: column; }
+        iframe { border: none; width: 100%; height: 600px; flex: 1; }
+        button { padding: 10px; width: 100%; margin-bottom: 10px; cursor: pointer; }
+        pre { background: #333; color: lime; padding: 10px; border-radius: 4px; overflow-x: auto; height: 200px; font-size: 12px; }
+        h2 { margin-top: 0; }
+    </style>
+</head>
+<body>
+
+    <div class="controls">
+        <h2>Host Controls</h2>
+        <p>Simulates the parent application controlling the micro-frontend.</p>
+        
+        <div>
+            <label>Questionnaire Type:</label>
+            <input type="text" id="qType" value="GREAT_QUEST" style="width: 100%; margin-bottom: 10px; padding: 5px;">
+        </div>
+
+        <button onclick="initQuestionnaire()">🚀 Initialize (WIWA_INIT)</button>
+        <button onclick="sendResize()">📏 Request Resize (Mock)</button>
+
+        <h3>Event Log</h3>
+        <pre id="log">Waiting for events...</pre>
+    </div>
+
+    <div class="preview">
+        <div style="padding: 10px; border-bottom: 1px solid #eee; font-weight: bold;">
+            Embedded Iframe (http://localhost:5173)
+        </div>
+        <iframe id="wiwaFrame" src="http://localhost:5173"></iframe>
+    </div>
+
+    <script>
+        const iframe = document.getElementById('wiwaFrame');
+        const log = document.getElementById('log');
+
+        function logMsg(msg) {
+            log.textContent = msg + '\n' + log.textContent;
+        }
+
+        function initQuestionnaire() {
+            const type = document.getElementById('qType').value;
+            const payload = {
+                type: 'WIWA_INIT',
+                payload: {
+                    questionnaireType: type,
+                    questionnaireId: 123,
+                    token: 'mock-token-abc'
+                }
+            };
+            iframe.contentWindow.postMessage(payload, '*');
+            logMsg(`[HOST] Sent WIWA_INIT with type=${type}`);
+        }
+
+        function sendResize() {
+            // Just testing generic message sending
+            logMsg('[HOST] Sending resize request (not implemented in app yet)');
+        }
+
+        window.addEventListener('message', (event) => {
+            logMsg(`[HOST] Received: ${event.data.type}`);
+            if (event.data.type === 'WIWA_COMPLETE') {
+                logMsg('✅ COMPLETE Payload: ' + JSON.stringify(event.data.payload, null, 2));
+            }
+            if (event.data.type === 'WIWA_RESIZE') {
+                logMsg(`📏 RESIZE: ${event.data.payload.height}px`);
+                iframe.style.height = event.data.payload.height + 'px';
+            }
+        });
+    </script>
+</body>
+</html>
