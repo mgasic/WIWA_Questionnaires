@@ -16,3 +16,5 @@ VERIFY_Questionnaire1_Data.sql
 **/bin/
 **/obj/
 
+debug_insert_short.sql
+restore_veliki_missing.sql

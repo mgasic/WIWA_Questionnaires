@@ -14,6 +14,9 @@ export const QuestionnaireRenderer: React.FC<Props> = ({ schema, rules, onChange
     const [errors, setErrors] = useState<Record<number, string>>({});
 
     const validateQuestionValue = (q: QuestionDto, value?: string, selectedAnswerIds?: number[]): string | null => {
+        // Skip validation for ReadOnly questions (user cannot fix them directly)
+        if (q.readOnly) return null;
+
         const hasValue = (value && value.trim() !== '') || (selectedAnswerIds && selectedAnswerIds.length > 0);
 
         if (q.isRequired && !hasValue) {
@@ -256,6 +259,7 @@ export const QuestionnaireRenderer: React.FC<Props> = ({ schema, rules, onChange
 
     const validateForm = () => {
         const newErrors: Record<number, string> = {};
+        console.log("Validating form...", schema);
 
         const validateRecursive = (questions: QuestionDto[]) => {
             questions.forEach(q => {
@@ -264,6 +268,7 @@ export const QuestionnaireRenderer: React.FC<Props> = ({ schema, rules, onChange
 
                 if (error) {
                     newErrors[q.questionID] = error;
+                    console.log(`Validation Failed for Q${q.questionID}:`, error);
                 }
 
                 // 2. Validate Children (Always Visible)
@@ -288,9 +293,9 @@ export const QuestionnaireRenderer: React.FC<Props> = ({ schema, rules, onChange
         setErrors(newErrors);
 
         if (Object.keys(newErrors).length > 0) {
-            alert('Please correct the errors before proceeding.');
+            alert(`Validation Failed! Found ${Object.keys(newErrors).length} errors. Please check the form.`);
         } else {
-            alert('Validation Passed!');
+            alert('Validation Passed! Form is valid.');
         }
     };
 
@@ -457,8 +462,20 @@ export const QuestionnaireRenderer: React.FC<Props> = ({ schema, rules, onChange
                 <button className="btn-validate" onClick={validateForm}>Validate Answers</button>
             </div>
 
-            {/* Debug State */}
-            <pre style={{ marginTop: 50, fontSize: 10, background: '#eee' }}>{JSON.stringify(state, null, 2)}</pre>
+            {/* Debug State - Improved Contrast */}
+            <pre style={{
+                marginTop: 20,
+                padding: 15,
+                fontSize: 12,
+                backgroundColor: '#333',
+                color: '#fff',
+                border: '1px solid #555',
+                borderRadius: 6,
+                overflowX: 'auto',
+                whiteSpace: 'pre-wrap'
+            }}>
+                {JSON.stringify(state, null, 2)}
+            </pre>
         </div>
     );
 };
