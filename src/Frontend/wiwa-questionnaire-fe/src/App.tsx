@@ -115,6 +115,78 @@ function App({
     return results;
   }, []);
 
+  // Build Enriched Answers tree (structured output like input)
+  const buildEnrichedAnswers = useCallback((
+    questions: any[],
+    answers: Record<number, { value?: string; selectedAnswerIds?: number[] }>,
+    mappings: ReferenceMappingDto[] | undefined
+  ): any[] => {
+    const results: any[] = [];
+
+    for (const q of questions) {
+      const answer = answers[q.questionID];
+      if (!answer) continue;
+
+      const enriched: any = {
+        questionId: q.questionID,
+        questionText: q.questionText,
+        questionCode: (q as any).code || (q as any).questionLabel,
+      };
+
+      if (answer.value) {
+        enriched.value = answer.value;
+      }
+
+      if (answer.selectedAnswerIds?.length) {
+        enriched.selectedAnswers = answer.selectedAnswerIds.map(ansId => {
+          const ansObj = q.answers?.find((a: any) => a.predefinedAnswerID === ansId);
+          return {
+            answerId: ansId,
+            text: ansObj?.answer || '',
+            code: ansObj?.code || ''
+          };
+        });
+      }
+
+      // Add reference mapping if exists
+      const mapping = mappings?.find(m => m.questionId === q.questionID);
+      if (mapping) {
+        enriched.referenceMapping = {
+          tableName: mapping.tableName,
+          columnName: mapping.referenceColumnName
+        };
+      }
+
+      // Traverse children/subquestions
+      const subResults: any[] = [];
+
+      // Children (independent)
+      if (q.children?.length) {
+        const enrichedChildren = buildEnrichedAnswers(q.children, answers, mappings);
+        subResults.push(...enrichedChildren);
+      }
+
+      // Subquestions from selected answers
+      if (answer.selectedAnswerIds?.length) {
+        for (const ansId of answer.selectedAnswerIds) {
+          const ansObj = q.answers?.find((a: any) => a.predefinedAnswerID === ansId);
+          if (ansObj?.subQuestions?.length) {
+            const enrichedSub = buildEnrichedAnswers(ansObj.subQuestions, answers, mappings);
+            subResults.push(...enrichedSub);
+          }
+        }
+      }
+
+      if (subResults.length > 0) {
+        enriched.subQuestions = subResults;
+      }
+
+      results.push(enriched);
+    }
+
+    return results;
+  }, []);
+
   // Handle submit - used by both button and external trigger
   const handleSubmit = useCallback(async () => {
     if (!schema) return;
@@ -176,12 +248,19 @@ function App({
           schema.questions
         );
 
+        const enrichedAnswers = buildEnrichedAnswers(
+          schema.questions,
+          answersPayload,
+          schema.referenceMappings
+        );
+
         const completePayload: WiwaCompletePayload = {
           success: true,
           instanceId: resultInstanceId,
           questionnaireType: selectedType,
           identificatorValue: identificator,
           answers: answersPayload,
+          enrichedAnswers,
           referenceMappings,
           contextData
         };
@@ -201,7 +280,7 @@ function App({
     } finally {
       setLoading(false);
     }
-  }, [schema, formState, existingInstanceID, identificator, idTypeID, embedded, selectedType, contextData, buildReferenceMappings]);
+  }, [schema, formState, existingInstanceID, identificator, idTypeID, embedded, selectedType, contextData, buildReferenceMappings, buildEnrichedAnswers]);
 
   // Handle cancel
   const handleCancel = useCallback(() => {

@@ -30,12 +30,30 @@ export interface ReferenceMappingResult {
     value: string;
 }
 
+export interface EnrichedAnswerResult {
+    questionId: number;
+    questionText: string;
+    questionCode?: string;
+    value?: string;
+    selectedAnswers?: {
+        answerId: number;
+        text: string;
+        code: string;
+    }[];
+    referenceMapping?: {
+        tableName: string;
+        columnName: string;
+    };
+    subQuestions?: EnrichedAnswerResult[];
+}
+
 export interface WiwaCompletePayload {
     success: boolean;
     instanceId: number;
     questionnaireType: string;
     identificatorValue: string;
     answers: Record<number, { value?: string; selectedAnswerIds?: number[] }>;
+    enrichedAnswers: EnrichedAnswerResult[];
     referenceMappings: ReferenceMappingResult[];
     contextData?: Record<string, any>;
 }
