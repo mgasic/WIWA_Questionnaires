@@ -12,13 +12,14 @@ import ReactFlow, {
     updateEdge,
 } from 'reactflow';
 import type { Connection, Edge } from 'reactflow';
-import { UndoOutlined, RedoOutlined } from '@ant-design/icons';
+import { UndoOutlined, RedoOutlined, MenuFoldOutlined, MenuUnfoldOutlined } from '@ant-design/icons';
 import 'reactflow/dist/style.css';
 import { Card, Button, List, Modal, Form, Input, Select, Checkbox, Tabs, InputNumber, message, Row, Col } from 'antd';
-import { SaveOutlined, QuestionCircleOutlined, CheckSquareOutlined, DeleteOutlined } from '@ant-design/icons';
+import { SaveOutlined, QuestionCircleOutlined, CheckSquareOutlined, DeleteOutlined, TableOutlined } from '@ant-design/icons';
 import { useParams, useNavigate } from 'react-router-dom';
 import QuestionNode from '../components/QuestionNode';
 import AnswerNode from '../components/AnswerNode';
+import MatrixEditor from '../components/MatrixEditor';
 import {
     questionnaireTypesService,
     questionnaireIdentificatorTypesService,
@@ -27,7 +28,7 @@ import {
     databaseMetadataService,
     flowService
 } from '../services/flowApiService';
-import type { QuestionFormat, SpecificQuestionType, QuestionnaireType, QuestionnaireIdentificatorType } from '../types/flow';
+import type { QuestionFormat, SpecificQuestionType, QuestionnaireType, QuestionnaireIdentificatorType, MatrixDto } from '../types/flow';
 import './FlowBuilderPage.css';
 
 const nodeTypes = {
@@ -48,9 +49,20 @@ const FlowBuilderPageContent = () => {
     const [selectedNode, setSelectedNode] = useState<any>(null);
     const [isEditModalOpen, setIsEditModalOpen] = useState(false);
     const [isSaveModalOpen, setIsSaveModalOpen] = useState(false);
+    const [isSaving, setIsSaving] = useState(false);
     const [form] = Form.useForm();
     const [saveForm] = Form.useForm();
     const { screenToFlowPosition } = useReactFlow();
+
+    // Matrix Editor State
+    const [isMatrixEditorOpen, setIsMatrixEditorOpen] = useState(false);
+    const [currentMatrix, setCurrentMatrix] = useState<MatrixDto | null>(null);
+
+    // UI State
+    const [sidebarWidth, setSidebarWidth] = useState(300);
+    const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
+    const [isResizing, setIsResizing] = useState(false);
+    const [currentFlowName, setCurrentFlowName] = useState<string>('');
 
     // Dropdown data
     const [questionFormats, setQuestionFormats] = useState<QuestionFormat[]>([]);
@@ -108,6 +120,25 @@ const FlowBuilderPageContent = () => {
     // Using an effect on nodes/edges change is too chatty (drag).
     // Better to snapshot on specific actions: Delete, Connect, Drop, Edit.
 
+
+    // Resizing Logic
+    const startResizing = useCallback(() => setIsResizing(true), []);
+    const stopResizing = useCallback(() => setIsResizing(false), []);
+    const resize = useCallback((mouseMoveEvent: MouseEvent) => {
+        if (isResizing) {
+            const newWidth = mouseMoveEvent.clientX;
+            if (newWidth > 150 && newWidth < 800) setSidebarWidth(newWidth);
+        }
+    }, [isResizing]);
+
+    useEffect(() => {
+        window.addEventListener('mousemove', resize);
+        window.addEventListener('mouseup', stopResizing);
+        return () => {
+            window.removeEventListener('mousemove', resize);
+            window.removeEventListener('mouseup', stopResizing);
+        };
+    }, [resize, stopResizing]);
 
     useEffect(() => {
         loadDropdownData();
@@ -187,6 +218,7 @@ const FlowBuilderPageContent = () => {
         try {
             message.loading({ content: 'Loading flow...', key: 'loadFlow' });
             const flow = await flowService.getFlow(typeId);
+            setCurrentFlowName(flow.questionnaireTypeName);
 
             // Set nodes with pre-calculated child status
             const processedNodes = getUpdatedChildStatus(flow.nodes, flow.edges);
@@ -406,6 +438,30 @@ const FlowBuilderPageContent = () => {
         message.success('Node updated successfully');
     };
 
+    const handleOpenMatrixEditor = () => {
+        const formula = form.getFieldValue('formulaExpression');
+        let matrix: MatrixDto | null = null;
+        if (formula && formula.trim().startsWith('{')) {
+            try {
+                matrix = JSON.parse(formula);
+            } catch (e) {
+                console.error('Failed to parse matrix JSON', e);
+            }
+        }
+        setCurrentMatrix(matrix);
+        setIsMatrixEditorOpen(true);
+    };
+
+    const handleMatrixSaveSuccess = (matrix: MatrixDto) => {
+        form.setFieldsValue({
+            formulaExpression: JSON.stringify(matrix, null, 2),
+            matrixObjectName: matrix.matrixName,
+            // Optionally auto-set output column if needed
+            // matrixOutputColumnName: matrix.definition.valueColumns[0] 
+        });
+        message.success('Matrix configuration updated in form');
+    };
+
     const handleSaveFlow = () => {
         if (nodes.length === 0) {
             message.error('Flow is empty. Add at least one question.');
@@ -417,6 +473,7 @@ const FlowBuilderPageContent = () => {
     };
 
     const handleSaveModalOk = async () => {
+        setIsSaving(true);
         try {
             const values = await saveForm.validateFields();
 
@@ -472,6 +529,8 @@ const FlowBuilderPageContent = () => {
         } catch (error: any) {
             message.error('Failed to save flow');
             console.error(error);
+        } finally {
+            setIsSaving(false);
         }
     };
 
@@ -503,8 +562,20 @@ const FlowBuilderPageContent = () => {
 
     return (
         <div className="flow-builder-container">
-            <div className="toolbar">
-                <Card title="Elements Palette" size="small" style={{ height: '100%', overflow: 'auto' }}>
+            <div
+                className={`toolbar ${isSidebarCollapsed ? 'collapsed' : ''}`}
+                style={{ width: isSidebarCollapsed ? 0 : sidebarWidth }}
+            >
+                <Card
+                    title={
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                            <span>Elements Palette</span>
+                        </div>
+                    }
+                    size="small"
+                    style={{ height: '100%', overflow: 'auto', display: isSidebarCollapsed ? 'none' : 'flex', flexDirection: 'column' }}
+                    bodyStyle={{ flex: 1, overflowY: 'auto' }}
+                >
                     <List
                         dataSource={paletteItems}
                         renderItem={(item) => (
@@ -534,14 +605,36 @@ const FlowBuilderPageContent = () => {
                             <li style={{ color: '#1890ff', marginTop: '4px' }}>🔵 Root Question (blue)</li>
                             <li style={{ color: '#722ed1' }}>🟣 Q→Q parent-child (purple)</li>
                             <li style={{ color: '#fa8c16' }}>🟠 A→Q subquestion (orange)</li>
+                            <li style={{ color: '#52c41a', display: 'flex', alignItems: 'center', marginTop: '4px' }}>
+                                <CheckSquareOutlined style={{ marginRight: '4px' }} /> Predefined Answer (green)
+                            </li>
                         </ul>
                     </div>
                 </Card>
             </div>
+            <div
+                className="sidebar-resizer"
+                onMouseDown={startResizing}
+            />
 
             <div className="canvas-container">
                 <div className="flow-builder-header">
-                    <h2>Questionnaire Flow Builder</h2>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+                        <Button
+                            icon={isSidebarCollapsed ? <MenuUnfoldOutlined /> : <MenuFoldOutlined />}
+                            onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
+                        />
+                        <h2>
+                            {id === 'new' ? (
+                                'Create New Flow'
+                            ) : (
+                                <>
+                                    <span>Edit Flow</span>
+                                    {currentFlowName && <span style={{ color: '#1890ff', marginLeft: '8px' }}>- {currentFlowName}</span>}
+                                </>
+                            )}
+                        </h2>
+                    </div>
                     <div className="header-actions">
                         <Button
                             danger
@@ -774,9 +867,18 @@ const FlowBuilderPageContent = () => {
                                                 </Col>
                                             </Row>
 
-                                            <Form.Item label="Formula Expression" name="formulaExpression">
-                                                <Input.TextArea rows={2} placeholder="Optional formula" />
+                                            <Form.Item label="Formula Expression / Matrix Config" name="formulaExpression">
+                                                <Input.TextArea rows={4} placeholder="Formula or Matrix JSON" />
                                             </Form.Item>
+
+                                            <div style={{ marginBottom: 24 }}>
+                                                <Button type="dashed" onClick={handleOpenMatrixEditor} icon={<TableOutlined />}>
+                                                    Open Matrix Editor
+                                                </Button>
+                                                <span style={{ marginLeft: 8, color: '#8c8c8c', fontSize: '12px' }}>
+                                                    (Use this to visually edit Matrix Lookup rules)
+                                                </span>
+                                            </div>
 
                                             <Form.Item name="isActive" valuePropName="checked" initialValue={true}>
                                                 <Checkbox>Is Active</Checkbox>
@@ -833,6 +935,11 @@ const FlowBuilderPageContent = () => {
                 onOk={handleSaveModalOk}
                 onCancel={() => setIsSaveModalOpen(false)}
                 width={600}
+                confirmLoading={isSaving}
+                maskClosable={!isSaving}
+                closable={!isSaving}
+                okButtonProps={{ disabled: isSaving }}
+                cancelButtonProps={{ disabled: isSaving }}
             >
                 <Form form={saveForm} layout="vertical">
                     <Form.Item label="Questionnaire Type">
@@ -912,6 +1019,16 @@ const FlowBuilderPageContent = () => {
                     )}
                 </Form>
             </Modal>
+            {/* Matrix Editor Modal */}
+            {selectedNode && (
+                <MatrixEditor
+                    visible={isMatrixEditorOpen}
+                    onClose={() => setIsMatrixEditorOpen(false)}
+                    questionId={parseInt(selectedNode.id.split('-')[0]) || 0}
+                    initialMatrix={currentMatrix}
+                    onSaveSuccess={handleMatrixSaveSuccess}
+                />
+            )}
         </div>
     );
 };

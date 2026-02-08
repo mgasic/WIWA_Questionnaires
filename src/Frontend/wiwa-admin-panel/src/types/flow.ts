@@ -97,3 +97,14 @@ export interface SaveFlowData {
     existingQuestionnaireIdentificatorTypeID?: number;
     isUpdate?: boolean;
 }
+
+export interface MatrixDefinitionDto {
+    keyColumns: string[];
+    valueColumns: string[];
+}
+
+export interface MatrixDto {
+    matrixName: string;
+    definition: MatrixDefinitionDto;
+    data: Record<string, any>[];
+}

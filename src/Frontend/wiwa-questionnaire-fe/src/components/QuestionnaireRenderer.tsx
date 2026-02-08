@@ -415,6 +415,28 @@ export const QuestionnaireRenderer = React.forwardRef<QuestionnaireRendererHandl
                         onChange={(e) => handleTextChange(q, e.target.value)}
                     />
                 );
+            case 'date':
+                return (
+                    <input
+                        type="date"
+                        className="text-input"
+                        value={state[q.questionID]?.value || ''}
+                        readOnly={isReadOnly}
+                        disabled={isReadOnly}
+                        onChange={(e) => handleTextChange(q, e.target.value)}
+                    />
+                );
+            case 'textarea':
+                return (
+                    <textarea
+                        className="text-input"
+                        rows={3}
+                        value={state[q.questionID]?.value || ''}
+                        readOnly={isReadOnly}
+                        disabled={isReadOnly}
+                        onChange={(e) => handleTextChange(q, e.target.value)}
+                    />
+                );
             default:
                 return <div>Unknown Control: {q.uiControl}</div>;
         }
@@ -427,7 +449,7 @@ export const QuestionnaireRenderer = React.forwardRef<QuestionnaireRendererHandl
 
         return (
             <div key={ans.predefinedAnswerID} className="answer-wrapper">
-                <label className={`answer-option ${isReadOnly ? 'disabled-option' : ''}`}>
+                <label className={`answer-option ${isReadOnly ? 'disabled-option' : ''} ${isSelected ? 'selected-option' : ''}`}>
                     <input
                         type={inputType}
                         name={`q_${q.questionID}`}

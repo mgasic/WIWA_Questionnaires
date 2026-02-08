@@ -64,11 +64,6 @@
   transition: all 0.3s ease;
 }
 
-display: flex;
-flex-direction: column;
-gap: 16px;
-transition: all 0.3s ease;
-}
 
 .nested-question-wrapper {
   width: 100%;
@@ -144,4 +139,32 @@ transition: all 0.3s ease;
 input[type="radio"],
 input[type="checkbox"] {
   accent-color: var(--wiwa-primary-color, #e30613);
+}
+
+/* Selected Answer Highlight */
+.answer-option.selected-option {
+  background-color: #F8FAFC;
+  /* Very light cool gray */
+  color: var(--wiwa-text-color, #1f2937);
+  font-weight: 600;
+  border: 1px solid #9CA3AF;
+  /* Medium gray border */
+}
+
+/* Enlarge input controls when selected for clarity */
+.answer-option.selected-option input[type="radio"],
+.answer-option.selected-option input[type="checkbox"] {
+  transform: scale(1.3);
+  /* Make the button noticeably larger */
+  margin-right: 5px;
+  /* Adjust spacing */
+  outline: 1px solid #6B7280;
+  /* Subtle outline for the control itself */
+  border-radius: 50%;
+  /* Ensuring radio stays round */
+}
+
+/* Checkbox specific fix for border-radius */
+.answer-option.selected-option input[type="checkbox"] {
+  border-radius: 2px;
 }

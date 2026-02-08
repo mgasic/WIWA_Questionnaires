@@ -96,8 +96,8 @@ public class QuestionnaireService : IQuestionnaireService
         {
             RuleId = r.QuestionComputedConfigID,
             QuestionId = r.QuestionID,
-            Kind = !string.IsNullOrEmpty(r.FormulaExpression) ? "FORMULA" :
-                   (r.ComputeMethodID == 2 ? "BMI_CALC" : (r.ComputeMethodID == 1 ? "MATRIX_LOOKUP" : "UNKNOWN")),
+            Kind = r.ComputeMethodID == 1 ? "MATRIX_LOOKUP" : (r.ComputeMethodID == 2 ? "FORMULA" : "UNKNOWN"),
+
             RuleName = r.RuleName,
             MatrixName = r.MatrixObjectName ?? string.Empty,
             ResultCodeColumn = r.MatrixOutputColumnName ?? "Value",
@@ -112,23 +112,24 @@ public class QuestionnaireService : IQuestionnaireService
             Rules = ruleDtos
         };
 
-        // Inject BuildingCategoryMatrix for Type 1 (Location/Asset) via Mock JSON
-        if (type.QuestionnaireTypeID == 1)
+        // 5c. Load Matrices from Configuration (FormulaExpression)
+        foreach (var rule in rules)
         {
-            try 
+            // Check if it's a Matrix Lookup (1) and has JSON content in FormulaExpression
+            if (rule.ComputeMethodID == 1 && !string.IsNullOrWhiteSpace(rule.FormulaExpression) && rule.FormulaExpression.TrimStart().StartsWith("{"))
             {
-                var filePath = System.IO.Path.Combine(System.IO.Directory.GetParent(System.IO.Directory.GetCurrentDirectory())!.Parent!.Parent!.FullName, "docs", "CurrentState", "BuildingCategoryMatrix_Injection.json");
-                if (System.IO.File.Exists(filePath))
+                try 
                 {
-                    var matrixJson = System.IO.File.ReadAllText(filePath);
-                    var matrix = System.Text.Json.JsonSerializer.Deserialize<MatrixDto>(matrixJson, new System.Text.Json.JsonSerializerOptions { PropertyNameCaseInsensitive = true });
-                    if (matrix != null) schemaDto.Matrices.Add(matrix);
+                    var matrix = System.Text.Json.JsonSerializer.Deserialize<MatrixDto>(rule.FormulaExpression, new System.Text.Json.JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+                    if (matrix != null) 
+                    {
+                        schemaDto.Matrices.Add(matrix);
+                    }
                 }
-            }
-            catch (Exception ex)
-            {
-                // Silently fail or log in mock mode
-                Console.WriteLine($"Error injecting mock matrix: {ex.Message}");
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"Error deserializing matrix from config ID {rule.QuestionComputedConfigID}: {ex.Message}");
+                }
             }
         }
 
@@ -383,6 +384,43 @@ public class QuestionnaireService : IQuestionnaireService
                 Name = t.Name
             })
             .ToListAsync();
+    }
+
+    public async Task SaveMatrixAsync(int questionId, MatrixDto matrix)
+    {
+        var config = await _context.QuestionComputedConfigs
+            .FirstOrDefaultAsync(c => c.QuestionID == questionId);
+
+        if (config == null)
+        {
+            config = new QuestionComputedConfig
+            {
+                QuestionID = questionId,
+                IsActive = true,
+                Priority = 1,
+                ComputeMethodID = 1, // MATRIX_LOOKUP
+                RuleName = $"Matrix for Q{questionId}",
+                MatrixObjectName = matrix.MatrixName ?? "DynamicMatrix",
+                MatrixOutputColumnName = matrix.Definition?.ValueColumns?.FirstOrDefault() ?? "Value",
+                OutputMode = 1
+            };
+            _context.QuestionComputedConfigs.Add(config);
+        }
+        else
+        {
+            config.ComputeMethodID = 1; // Ensure it's Matrix
+            config.MatrixObjectName = matrix.MatrixName ?? "DynamicMatrix";
+            // Keep existing RuleName if consistent, or update? Let's just update the matrix fields.
+            if (matrix.Definition?.ValueColumns?.Any() == true)
+            {
+                config.MatrixOutputColumnName = matrix.Definition.ValueColumns.First();
+            }
+        }
+
+        var json = System.Text.Json.JsonSerializer.Serialize(matrix, new System.Text.Json.JsonSerializerOptions { WriteIndented = true });
+        config.FormulaExpression = json;
+
+        await _context.SaveChangesAsync();
     }
 
     private string MapFormat(string? code)

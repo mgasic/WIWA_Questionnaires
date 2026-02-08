@@ -100,6 +100,57 @@ public class QuestionsController : ControllerBase
         return NoContent();
     }
 
+    // POST: api/Questions/5/matrix
+    [HttpPost("{id}/matrix")]
+    public async Task<IActionResult> SaveMatrix(int id, [FromBody] Wiwa.Admin.API.DTOs.AdminMatrixDto matrix)
+    {
+        var question = await _context.Questions
+            .Include(q => q.QuestionComputedConfigs)
+            .FirstOrDefaultAsync(q => q.QuestionID == id);
+
+        if (question == null)
+        {
+            return NotFound();
+        }
+
+        // Logic: Find the computed config to update. 
+        // For now, we update the first active one, or create new if none.
+        // Or if the matrix name matches?
+        // Let's assume one matrix per question for now as per requirement context.
+
+        var config = question.QuestionComputedConfigs.FirstOrDefault();
+        if (config == null)
+        {
+            // If no config exists, we should probably create one, but that requires more info (rule name etc)
+            // However, the frontend usually creates a default config when "IsComputed" is checked?
+            // If not, we can create a basic one.
+            config = new QuestionComputedConfig
+            {
+                QuestionID = id,
+                IsActive = true,
+                Priority = 1,
+                RuleName = matrix.MatrixName ?? "Matrix Rule",
+                OutputMode = 1, // Default or derive
+                ComputeMethodID = 2 // Assuming 2 is Matrix Lookup based on earlier analysis?
+            };
+            _context.QuestionComputedConfigs.Add(config);
+        }
+
+        // Update Matrix details
+        if (!string.IsNullOrEmpty(matrix.MatrixName))
+        {
+            config.MatrixObjectName = matrix.MatrixName;
+        }
+
+        // Serialize MatrixDto to FormulaExpression
+        // We need System.Text.Json
+        config.FormulaExpression = System.Text.Json.JsonSerializer.Serialize(matrix);
+
+        await _context.SaveChangesAsync();
+
+        return Ok(config);
+    }
+
     private bool QuestionExists(int id)
     {
         return _context.Questions.Any(e => e.QuestionID == id);

@@ -1,7 +1,7 @@
 import axios from 'axios';
 import type { Question } from '../types/api';
 
-const API_BASE_URL = 'http://localhost:5224/api';
+const API_BASE_URL = 'http://localhost:5238/api';
 
 const apiClient = axios.create({
     baseURL: API_BASE_URL,

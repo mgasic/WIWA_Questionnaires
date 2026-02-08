@@ -165,7 +165,9 @@ public class FlowLoaderService : IFlowLoaderService
                     Id = qAnswerEdgeId,
                     Source = qNodeId,
                     Target = aNodeId,
-                    Type = "smoothstep"
+                    Type = "smoothstep",
+                    SourceHandle = GetBottomHandle(answerIndex, question.PredefinedAnswers.Count),
+                    TargetHandle = "top"
                 };
 
                 // Restore Edge Handles
@@ -194,7 +196,9 @@ public class FlowLoaderService : IFlowLoaderService
                         Id = sqEdgeId,
                         Source = aNodeId,
                         Target = targetNodeId,
-                        Type = "smoothstep"
+                        Type = "smoothstep",
+                        SourceHandle = GetBottomHandle(sqIndex, answer.SubQuestions.Count),
+                        TargetHandle = "top"
                     };
 
                     // Restore Edge Handles
@@ -236,7 +240,9 @@ public class FlowLoaderService : IFlowLoaderService
                     Source = qNodeId,
                     Target = targetNodeId,
                     Label = "Next",
-                    Type = "smoothstep"
+                    Type = "smoothstep",
+                    SourceHandle = "bottom",
+                    TargetHandle = "top"
                 };
 
                 // Restore Edge Handles
@@ -333,5 +339,19 @@ public class FlowLoaderService : IFlowLoaderService
                 Label = a.Answer
             }
         };
+    }
+
+    private string GetBottomHandle(int index, int total)
+    {
+        if (total <= 1) return "bottom";
+        
+        int[] available = { 5, 20, 35, 50, 65, 80, 95 };
+        double step = 90.0 / (total - 1);
+        int target = (int)(5 + index * step);
+        
+        int closest = available.OrderBy(x => System.Math.Abs(x - target)).First();
+        
+        if (closest == 50) return "bottom";
+        return $"bottom-{closest}";
     }
 }

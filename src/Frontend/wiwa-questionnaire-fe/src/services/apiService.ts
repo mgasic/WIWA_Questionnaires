@@ -1,7 +1,7 @@
 import axios from 'axios';
 import type { QuestionnaireSchemaDto, QuestionTypeDto, QuestionnaireSubmissionDto, IdentificatorTypeDto } from '../types/api';
 
-const API_BASE_URL = 'http://localhost:5238/api'; // Correct port from launchSettings.json
+const API_BASE_URL = 'http://localhost:5000/api'; // Correct port for Questionnaire Backend
 
 export const questionnaireApi = {
     getSchema: async (typeCode: string): Promise<QuestionnaireSchemaDto> => {

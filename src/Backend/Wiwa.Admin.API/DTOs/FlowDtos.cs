@@ -97,3 +97,16 @@ public class SaveFlowResponseDto
     public short? QuestionnaireTypeID { get; set; }
     public List<string> Errors { get; set; } = new();
 }
+
+public class AdminMatrixDefinitionDto
+{
+    public List<string> KeyColumns { get; set; } = new();
+    public List<string> ValueColumns { get; set; } = new();
+}
+
+public class AdminMatrixDto
+{
+    public string MatrixName { get; set; } = string.Empty;
+    public AdminMatrixDefinitionDto Definition { get; set; } = new();
+    public List<Dictionary<string, object>> Data { get; set; } = new();
+}

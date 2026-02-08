@@ -6,35 +6,40 @@ import FlowBuilderPage from './pages/FlowBuilderPage';
 import DashboardPage from './pages/DashboardPage';
 import './App.css';
 
-const { Header, Sider, Content } = Layout;
+const { Header, Content } = Layout;
 
 function App() {
   return (
     <BrowserRouter>
-      <Layout style={{ minHeight: '100vh' }}>
-        <Header style={{ background: '#001529', color: 'white', fontSize: '20px', fontWeight: 'bold', display: 'flex', alignItems: 'center' }}>
-          WIWA Admin Panel
+      <Layout style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
+        <Header style={{ background: '#001529', display: 'flex', alignItems: 'center', padding: '0 24px' }}>
+          <div style={{ color: 'white', fontSize: '20px', fontWeight: 'bold', marginRight: '40px', whiteSpace: 'nowrap' }}>
+            WIWA Admin Panel
+          </div>
+          <Menu
+            theme="dark"
+            mode="horizontal"
+            defaultSelectedKeys={['1']}
+            style={{ flex: 1, minWidth: 0, justifyContent: 'flex-start' }}
+          >
+            <Menu.Item key="1" icon={<ApartmentOutlined />}>
+              <Link to="/">Dashboard</Link>
+            </Menu.Item>
+            <Menu.Item key="2" icon={<TableOutlined />}>
+              <Link to="/questions">Questions (Legacy)</Link>
+            </Menu.Item>
+          </Menu>
         </Header>
-        <Layout>
-          <Sider width={200} style={{ background: '#fff' }}>
-            <Menu mode="inline" defaultSelectedKeys={['1']} style={{ height: '100%', borderRight: 0 }}>
-              <Menu.Item key="1" icon={<ApartmentOutlined />}>
-                <Link to="/">Dashboard</Link>
-              </Menu.Item>
-              <Menu.Item key="2" icon={<TableOutlined />}>
-                <Link to="/questions">Questions (Legacy)</Link>
-              </Menu.Item>
-            </Menu>
-          </Sider>
-          <Content style={{ padding: '24px', background: '#f0f2f5' }}>
+        <Content style={{ padding: 0, background: '#f0f2f5', flex: 1, display: 'flex', flexDirection: 'column' }}>
+          <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
             <Routes>
               <Route path="/" element={<DashboardPage />} />
               <Route path="/questions" element={<QuestionsPage />} />
               <Route path="/flow-builder" element={<FlowBuilderPage />} />
               <Route path="/flow-builder/:id" element={<FlowBuilderPage />} />
             </Routes>
-          </Content>
-        </Layout>
+          </div>
+        </Content>
       </Layout>
     </BrowserRouter>
   );

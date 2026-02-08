@@ -1,6 +1,6 @@
 import axios from 'axios';
 
-const API_BASE_URL = 'http://localhost:5224/api';
+const API_BASE_URL = 'http://localhost:5238/api';
 
 // Questionnaire Types
 export const questionnaireTypesService = {
@@ -85,6 +85,10 @@ export const flowService = {
     },
     getReferenceTableMetadata: async (questionnaireTypeId: number) => {
         const response = await axios.get(`${API_BASE_URL}/Flow/GetReferenceTableMetadata/${questionnaireTypeId}`);
+        return response.data;
+    },
+    saveMatrix: async (questionId: number, matrix: any) => {
+        const response = await axios.post(`${API_BASE_URL}/Questions/${questionId}/matrix`, matrix);
         return response.data;
     }
 };

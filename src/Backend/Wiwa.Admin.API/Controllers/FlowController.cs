@@ -50,8 +50,6 @@ public class FlowController : ControllerBase
             }
 
             short questionnaireTypeId;
-            var existingQIds = new HashSet<int>();
-            var existingAIds = new HashSet<int>();
 
             if (flowDto.ExistingQuestionnaireTypeID.HasValue)
             {
@@ -59,32 +57,32 @@ public class FlowController : ControllerBase
                 
                 if (flowDto.IsUpdate)
                 {
-                    var graphIds = await GetExistingGraphIds(questionnaireTypeId);
-                    existingQIds = graphIds.QuestionIds;
-                    existingAIds = graphIds.AnswerIds;
+                    // COMPLETE CLEANUP: Delete ALL existing data for this QuestionnaireType
+                    await DeleteQuestionnaireTypeDataAsync(questionnaireTypeId);
                 }
-                
-                // Clear existing root mappings
-                var existingMappings = await _context.Questionnaires
-                    .Where(q => q.QuestionnaireTypeID == questionnaireTypeId)
-                    .ToListAsync();
-
-                if (existingMappings.Any())
+                else
                 {
-                    _context.Questionnaires.RemoveRange(existingMappings);
-                }
+                    // If not update, just clear root mappings and layouts
+                    var existingMappings = await _context.Questionnaires
+                        .Where(q => q.QuestionnaireTypeID == questionnaireTypeId)
+                        .ToListAsync();
 
-                // Clear existing layout metadata for this type
-                var existingLayouts = await _context.FlowLayouts
-                    .Where(l => l.QuestionnaireTypeID == questionnaireTypeId)
-                    .ToListAsync();
-                
-                if (existingLayouts.Any())
-                {
-                    _context.FlowLayouts.RemoveRange(existingLayouts);
-                }
+                    if (existingMappings.Any())
+                    {
+                        _context.Questionnaires.RemoveRange(existingMappings);
+                    }
 
-                await _context.SaveChangesAsync();
+                    var existingLayouts = await _context.FlowLayouts
+                        .Where(l => l.QuestionnaireTypeID == questionnaireTypeId)
+                        .ToListAsync();
+                    
+                    if (existingLayouts.Any())
+                    {
+                        _context.FlowLayouts.RemoveRange(existingLayouts);
+                    }
+
+                    await _context.SaveChangesAsync();
+                }
             }
             else
             {
@@ -120,31 +118,20 @@ public class FlowController : ControllerBase
 
             foreach (var node in questionNodes)
             {
-                // Step 4: Map Question node to Entity
-                Question question = null;
-                int qIdParsed;
-                string idPart = node.Id.StartsWith("q-") ? node.Id.Substring(2) : node.Id;
+                // Step 4: Create new Question entity (we deleted all old data if update)
+                var question = new Question
+                {
+                    QuestionText = node.Data.QuestionText ?? "Untitled Question",
+                    QuestionLabel = node.Data.QuestionLabel,
+                    QuestionOrder = node.Data.QuestionOrder,
+                    QuestionFormatID = node.Data.QuestionFormatID,
+                    SpecificQuestionTypeID = node.Data.SpecificQuestionTypeID,
+                    ReadOnly = node.Data.ReadOnly,
+                    IsRequired = node.Data.IsRequired,
+                    ValidationPattern = node.Data.ValidationPattern
+                };
                 
-                if (int.TryParse(idPart, out qIdParsed) && existingQIds.Contains(qIdParsed))
-                {
-                    question = await _context.Questions.FindAsync(qIdParsed);
-                }
-
-                if (question == null)
-                {
-                    question = new Question();
-                    _context.Questions.Add(question);
-                }
-
-                question.QuestionText = node.Data.QuestionText ?? "Untitled Question";
-                question.QuestionLabel = node.Data.QuestionLabel;
-                question.QuestionOrder = node.Data.QuestionOrder;
-                question.QuestionFormatID = node.Data.QuestionFormatID;
-                question.SpecificQuestionTypeID = node.Data.SpecificQuestionTypeID;
-                question.ReadOnly = node.Data.ReadOnly;
-                question.IsRequired = node.Data.IsRequired;
-                question.ValidationPattern = node.Data.ValidationPattern;
-
+                _context.Questions.Add(question);
                 await _context.SaveChangesAsync();
                 
                 nodeIdToQuestionId[node.Id] = question.QuestionID;
@@ -223,28 +210,18 @@ public class FlowController : ControllerBase
 
                 var parentQuestionId = nodeIdToQuestionId[parentEdge.Source];
 
-                PredefinedAnswer answer = null;
-                int aIdParsed;
-                string aIdPart = answerNode.Id.StartsWith("a-") ? answerNode.Id.Substring(2) : answerNode.Id;
-
-                if (int.TryParse(aIdPart, out aIdParsed) && existingAIds.Contains(aIdParsed))
+                // Create new Answer entity (we deleted all old data if update)
+                var answer = new PredefinedAnswer
                 {
-                     answer = await _context.PredefinedAnswers.FindAsync(aIdParsed);
-                }
+                    QuestionID = parentQuestionId,
+                    Answer = answerNode.Data.AnswerText ?? "Untitled Answer",
+                    Code = answerNode.Data.Code,
+                    PreSelected = answerNode.Data.IsPreSelected,
+                    StatisticalWeight = answerNode.Data.StatisticalWeight,
+                    DisplayOrder = answerNode.Data.DisplayOrder ?? 0
+                };
 
-                if (answer == null)
-                {
-                    answer = new PredefinedAnswer();
-                    _context.PredefinedAnswers.Add(answer);
-                }
-
-                answer.QuestionID = parentQuestionId;
-                answer.Answer = answerNode.Data.AnswerText ?? "Untitled Answer";
-                answer.Code = answerNode.Data.Code;
-                answer.PreSelected = answerNode.Data.IsPreSelected;
-                answer.StatisticalWeight = answerNode.Data.StatisticalWeight;
-                answer.DisplayOrder = answerNode.Data.DisplayOrder ?? 0;
-
+                _context.PredefinedAnswers.Add(answer);
                 await _context.SaveChangesAsync();
 
                 nodeIdToAnswerId[answerNode.Id] = answer.PredefinedAnswerID;
@@ -393,6 +370,29 @@ public class FlowController : ControllerBase
         }
     }
 
+    [HttpDelete("Delete/{questionnaireTypeId}")]
+    public async Task<IActionResult> DeleteFlow(short questionnaireTypeId)
+    {
+        try
+        {
+            var type = await _context.QuestionnaireTypes.FindAsync(questionnaireTypeId);
+            if (type == null)
+            {
+                return NotFound($"Questionnaire Type with ID {questionnaireTypeId} not found.");
+            }
+
+            // Reuse the cleanup logic
+            await DeleteQuestionnaireTypeDataAsync(questionnaireTypeId);
+
+            return Ok(new { message = $"Questionnaire Type '{type.Name}' (ID: {questionnaireTypeId}) and all associated data deleted successfully." });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, $"Error deleting questionnaire type {questionnaireTypeId}");
+            return StatusCode(500, new { error = "An error occurred while deleting the questionnaire type.", details = ex.Message });
+        }
+    }
+
     [HttpGet("GetFlow/{questionnaireTypeId}")]
     public async Task<ActionResult<FlowDto>> GetFlow(int questionnaireTypeId)
     {
@@ -491,6 +491,93 @@ public class FlowController : ControllerBase
             _logger.LogError(ex, "Error cleaning up orphaned questions");
         }
     }
+    private async Task DeleteQuestionnaireTypeDataAsync(short questionnaireTypeId)
+    {
+        try
+        {
+            var connection = _context.Database.GetDbConnection();
+            if (connection.State != ConnectionState.Open) await connection.OpenAsync();
+            
+            using var command = connection.CreateCommand();
+            command.CommandText = @"
+                -- Build valid question tree for this type
+                WITH ValidTree AS (
+                    SELECT QuestionID FROM Questionnaires WHERE QuestionnaireTypeID = @TypeId
+                    UNION ALL
+                    SELECT Q.QuestionID FROM ValidTree T JOIN Questions Q ON Q.ParentQuestionID = T.QuestionID
+                    UNION ALL
+                    SELECT PASQ.SubQuestionID FROM ValidTree T 
+                    JOIN PredefinedAnswers PA ON T.QuestionID = PA.QuestionID 
+                    JOIN PredefinedAnswerSubQuestions PASQ ON PA.PredefinedAnswerID = PASQ.PredefinedAnswerID
+                )
+                SELECT DISTINCT QuestionID INTO #ValidQs FROM ValidTree;
+
+                -- Delete QuestionnaireAnswers for this type
+                DELETE FROM QuestionnaireAnswers 
+                WHERE QuestionnaireByQuestionnaireIdentificatorID IN (
+                    SELECT QuestionnaireByQuestionnaireIdentificatorID 
+                    FROM QuestionnaireByQuestionnaireIdentificators 
+                    WHERE QuestionnaireTypeID = @TypeId
+                );
+
+                -- Delete QuestionnaireByQuestionnaireIdentificators
+                DELETE FROM QuestionnaireByQuestionnaireIdentificators WHERE QuestionnaireTypeID = @TypeId;
+
+                -- Delete FlowLayouts
+                DELETE FROM FlowLayouts WHERE QuestionnaireTypeID = @TypeId;
+
+                -- Delete Questionnaires (root mappings)
+                DELETE FROM Questionnaires WHERE QuestionnaireTypeID = @TypeId;
+
+                -- Delete QuestionReferenceColumns
+                DELETE FROM QuestionReferenceColumns WHERE QuestionID IN (SELECT QuestionID FROM #ValidQs);
+
+                -- Delete QuestionComputedConfigs
+                DELETE FROM QuestionComputedConfigs WHERE QuestionID IN (SELECT QuestionID FROM #ValidQs);
+
+                -- Delete PredefinedAnswerSubQuestions
+                DELETE FROM PredefinedAnswerSubQuestions 
+                WHERE PredefinedAnswerID IN (
+                    SELECT pa.PredefinedAnswerID 
+                    FROM PredefinedAnswers pa
+                    WHERE pa.QuestionID IN (SELECT QuestionID FROM #ValidQs)
+                );
+
+                -- Delete PredefinedAnswers
+                DELETE FROM PredefinedAnswers WHERE QuestionID IN (SELECT QuestionID FROM #ValidQs);
+
+                -- Delete Questions
+                DELETE FROM Questions WHERE QuestionID IN (SELECT QuestionID FROM #ValidQs);
+
+                -- Delete QuestionnaireTypeReferenceTables
+                DELETE FROM QuestionReferenceColumns 
+                WHERE QuestionnaireTypeReferenceTableID IN (
+                    SELECT QuestionnaireTypeReferenceTableID 
+                    FROM QuestionnaireTypeReferenceTables 
+                    WHERE QuestionnaireTypeID = @TypeId
+                );
+                
+                DELETE FROM QuestionnaireTypeReferenceTables WHERE QuestionnaireTypeID = @TypeId;
+
+                DROP TABLE #ValidQs;
+            ";
+            
+            var p = command.CreateParameter();
+            p.ParameterName = "@TypeId";
+            p.Value = questionnaireTypeId;
+            command.Parameters.Add(p);
+            
+            await command.ExecuteNonQueryAsync();
+            
+            _logger.LogInformation($"Successfully deleted all data for QuestionnaireTypeID: {questionnaireTypeId}");
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, $"Error deleting data for QuestionnaireTypeID: {questionnaireTypeId}");
+            throw;
+        }
+    }
+
     private async Task<(HashSet<int> QuestionIds, HashSet<int> AnswerIds)> GetExistingGraphIds(int questionnaireTypeId)
     {
         var qIds = new HashSet<int>();

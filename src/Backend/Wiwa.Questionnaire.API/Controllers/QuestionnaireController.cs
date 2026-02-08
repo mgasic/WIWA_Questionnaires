@@ -52,4 +52,18 @@ public class QuestionnaireController : ControllerBase
             return BadRequest(ex.Message);
         }
     }
+
+    [HttpPost("matrix/{questionId}")]
+    public async Task<IActionResult> SaveMatrix(int questionId, [FromBody] MatrixDto matrix)
+    {
+        try
+        {
+            await _service.SaveMatrixAsync(questionId, matrix);
+            return Ok();
+        }
+        catch (Exception ex)
+        {
+            return BadRequest(ex.Message);
+        }
+    }
 }
